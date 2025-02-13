@@ -47,12 +47,14 @@ async function crawlWebsite(
 	const visited = new Set<string>();
 	const normalizedStartUrl = normalizeUrl(startUrl);
 	const queue: string[] = [normalizedStartUrl];
-	const baseDomain = new URL(normalizedStartUrl).hostname;
+	const startUrlObj = new URL(normalizedStartUrl);
+	const baseDomain = startUrlObj.hostname;
+	const basePath = startUrlObj.pathname.replace(/\/?$/, '/'); // Ensure trailing slash
 	const pages: Array<{ url: string; content: string }> = [];
 	const turndownService = new TurndownService();
 
 	// Helper function to clean the HTML content
-	function cleanHtmlContent($: cheerio.CheerioAPI): void {
+	function cleanHtmlContent($: cheerio.CheerioAPI) {
 		// Remove common navigation and duplicated elements
 		$('nav, header, footer').remove();
 		$('.navigation, .nav, .navbar, .menu').remove();
@@ -61,6 +63,19 @@ async function crawlWebsite(
 		$('aside').remove();
 		$('script').remove();
 		$('style').remove();
+		$('iframe').remove();
+		$('video').remove();
+		$('audio').remove();
+		$('img').remove();
+		$('svg').remove();
+		$('canvas').remove();
+		$('form').remove();
+		$('input').remove();
+		$('button').remove();
+		$('select').remove();
+		$('textarea').remove();
+		$('link').remove();
+		$('meta').remove();
 
 		// Remove elements with common navigation-related roles
 		$('[role="navigation"]').remove();
@@ -71,6 +86,8 @@ async function crawlWebsite(
 		$('#header, #footer, #nav, #navigation, #menu').remove();
 		$('.social-links, .social-media').remove();
 		$('.breadcrumbs').remove();
+
+		return $;
 	}
 
 	while (queue.length > 0) {
@@ -85,19 +102,6 @@ async function crawlWebsite(
 
 		const $ = load(html);
 
-		// Clean the HTML before converting to Markdown
-		cleanHtmlContent($);
-
-		// Get the cleaned HTML
-		const cleanedHtml = $.html({
-			scriptingEnabled: false,
-			xml: true,
-		});
-
-		// Convert the cleaned HTML to Markdown
-		const markdownContent = turndownService.turndown(cleanedHtml);
-		pages.push({ url: currentUrl, content: markdownContent });
-
 		// Find and process all anchor tags.
 		$('a[href]').each((_, element) => {
 			const href = $(element).attr('href');
@@ -107,7 +111,7 @@ async function crawlWebsite(
 				// Skip image and asset URLs
 				if (/\.(jpg|jpeg|png|gif|svg|ico|css|js)$/i.test(href)) return;
 
-				// Resolve relative URLs and normalize by removing hash fragments.
+				// Resolve relative URLs and normalize by removing hash fragments
 				const newUrlObj = new URL(href, currentUrl);
 				newUrlObj.hash = '';
 				const normalizedUrl = newUrlObj.toString();
@@ -115,15 +119,30 @@ async function crawlWebsite(
 				const isSameDomain =
 					newUrlObj.hostname.replace('www.', '') ===
 					baseDomain.replace('www.', '');
+				const newPath = newUrlObj.pathname.replace(/\/?$/, '/'); // Ensure trailing slash
+				const isUnderBasePath = newPath.startsWith(basePath);
 
-				// Only add URLs on the same domain that haven't been visited.
-				if (isSameDomain && !visited.has(normalizedUrl)) {
+				// Only add URLs on the same domain, under the same path, that haven't been visited
+				if (isSameDomain && isUnderBasePath && !visited.has(normalizedUrl)) {
 					queue.push(normalizedUrl);
 				}
 			} catch {
-				// Ignore invalid URLs.
+				// Ignore invalid URLs
 			}
 		});
+
+		// Clean the HTML before converting to Markdown
+		const htmlWithoutSomeElements = cleanHtmlContent($);
+
+		// Get the cleaned HTML
+		const cleanedHtml = htmlWithoutSomeElements.html({
+			scriptingEnabled: false,
+			xml: true,
+		});
+
+		// Convert the cleaned HTML to Markdown
+		const markdownContent = turndownService.turndown(cleanedHtml);
+		pages.push({ url: currentUrl, content: markdownContent });
 	}
 
 	// Combine all page Markdown content into one file.
