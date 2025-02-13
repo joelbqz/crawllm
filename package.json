@@ -2,6 +2,7 @@
   "name": "crawllm",
   "module": "index.ts",
   "type": "module",
+  "version": "0.0.2",
   "bin": {
     "crawllm": "./index.ts"
   },
