@@ -56,9 +56,10 @@ async function crawlWebsite(
 	// Helper function to clean the HTML content
 	function cleanHtmlContent($: cheerio.CheerioAPI) {
 		// Remove common navigation and duplicated elements
-		$('nav, header, footer').remove();
+		$('nav, footer').remove();
 		$('.navigation, .nav, .navbar, .menu').remove();
-		$('.header, .footer').remove();
+		$('#navbar, #navigation, #menu, #header, #footer').remove();
+		$('.footer').remove();
 		$('.sidebar, .aside').remove();
 		$('aside').remove();
 		$('script').remove();
