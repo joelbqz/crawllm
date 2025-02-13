@@ -112,8 +112,12 @@ async function crawlWebsite(
 				newUrlObj.hash = '';
 				const normalizedUrl = newUrlObj.toString();
 
+				const isSameDomain =
+					newUrlObj.hostname.replace('www.', '') ===
+					baseDomain.replace('www.', '');
+
 				// Only add URLs on the same domain that haven't been visited.
-				if (newUrlObj.hostname === baseDomain && !visited.has(normalizedUrl)) {
+				if (isSameDomain && !visited.has(normalizedUrl)) {
 					queue.push(normalizedUrl);
 				}
 			} catch {
